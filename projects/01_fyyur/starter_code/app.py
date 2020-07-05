@@ -12,15 +12,20 @@ import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
+from flask_migrate import Migrate
+from datetime import datetime
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
 
 app = Flask(__name__)
 moment = Moment(app)
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://marc:3702@localhost:5432/fyyur'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config.from_object('config')
 db = SQLAlchemy(app)
 
+migrate = Migrate(app, db)
 # TODO: connect to a local postgresql database
 
 #----------------------------------------------------------------------------#
@@ -31,6 +36,7 @@ class Venue(db.Model):
     __tablename__ = 'Venue'
 
     id = db.Column(db.Integer, primary_key=True)
+    show_id = db.Column(db.Integer, db.ForeignKey('Show.id'))
     name = db.Column(db.String)
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
@@ -38,6 +44,10 @@ class Venue(db.Model):
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    genre = db.Column(db.String(10))
+
+    def __repr__(self):
+        return f'<Venue ID: {self.id}, name: {self.name}, city: {self.city}, state:{self.state}, address:{self.address}, phone:{self.phone}, image_link:{self.image_link}, facebook_link:{self.facebook_link}, genre:{self.genre}>'
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -45,6 +55,7 @@ class Artist(db.Model):
     __tablename__ = 'Artist'
 
     id = db.Column(db.Integer, primary_key=True)
+    show_id = db.Column(db.Integer, db.ForeignKey('Show.id'))
     name = db.Column(db.String)
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
@@ -53,9 +64,22 @@ class Artist(db.Model):
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
 
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
+    def __repr__(self):
+        return f'<Artist ID: {self.id}, name: {self.name}, city: {self.city}, state:{self.state}, phone:{self.phone}, genre:{self.genre}, image_link:{self.image_link}, facebook_link:{self.facebook_link}>'
 
-# TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
+    # TODO: implement any missing fields, as a database migration using Flask-Migrate
+class Show(db.Model):
+    __tablename__ = 'Show'
+
+    id = db.Column(db.Integer, primary_key=True)
+    venue_id = db.relationship('Venue', backref='list', lazy=True)
+    artist_id = db.relationship('Artist', backref='list', lazy=True)
+    start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+      return f'<Show ID:{self.id}, Venue ID:{self.venue_id}, Artist ID:{self.artist_id}, start date:{self.start_date}>'
+
+# TODO Implement Show, and complete all model relationships and properties, as a database migration.
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -86,7 +110,7 @@ def index():
 @app.route('/venues')
 def venues():
   # TODO: replace with real venues data.
-  #       num_shows should be aggregated based on number of upcoming shows per venue.
+  #       num_e should be aggregated based on number of upcoming shows per venue.
   data=[{
     "city": "San Francisco",
     "state": "CA",
