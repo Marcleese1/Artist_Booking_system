@@ -5,7 +5,7 @@
 import json
 import dateutil.parser
 import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for
+from flask import Flask, render_template, request, Response, flash, redirect, url_for, jsonify
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
@@ -14,6 +14,7 @@ from flask_wtf import Form
 from forms import *
 from flask_migrate import Migrate
 from datetime import datetime
+from os import sys
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -41,9 +42,9 @@ class Venue(db.Model):
     state = db.Column(db.String(120))
     address = db.Column(db.String(120))
     phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
+    #image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-    genre = db.Column(db.String(10))
+    genres = db.Column(db.String(10))
 
     #def __repr__(self):
      #   return f'<Venue ID: {self.id}, name: {self.name}, city: {self.city}, state:{self.state}, address:{self.address}, phone:{self.phone}, image_link:{self.image_link}, facebook_link:{self.facebook_link}, genre:{self.genre}>'
@@ -104,7 +105,16 @@ def index():
 
 @app.route('/venues')
 def venues():
-  return render_template('pages/venues.html')
+  data=[{
+    "city": request.form.get(Venue.city),
+    "state": request.form.get(VenueForm.state),
+    "venues": [{
+      "id": request.form.get(Venue.id),
+      "name": request.form.get(VenueForm.name),
+      "num_upcoming_shows": 0,
+    }]
+  }]
+  return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
@@ -143,18 +153,16 @@ def create_venue_form():
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
-  # TODO: modify data to be the data object returned from db insertion
-
     error = False
     body = {}
     try:
-        name = request.get_json()['name']
-        address = request.get_json()['address']
-        city = request.get_json()['city']
-        state = request.get_json()['state']
-        facebook_link=request.get_json()['facebook_link']
-        genre=request.get_json()['genre']
-        venuelist = Venue(name=name, address=address, city=city, state=state,facebook_link=facebook_link, genre=genre)
+        name = request.args.get("name", None)
+        address = request.args.get("address", None)
+        city = request.args.get("city", None)
+        state = request.args.get("state", None)
+        facebook_link=request.args.get("facebook_link", None)
+        genres=request.args.get("genres", None)
+        venuelist = Venue(name=name, address=address, city=city, state=state, genres=genres, facebook_link=facebook_link)
         db.session.add(venuelist)
         db.session.commit()
         body['id'] = venuelist.id
@@ -162,24 +170,22 @@ def create_venue_submission():
         body['address']=venuelist.address
         body['city']=venuelist.city
         body['state']=venuelist.state
-        #body['show_id']=venuelist.show_id
         body['facebook_link']=venuelist.facebook_link
-        body['image_link']=venuelist.image_link
-        body['genre']=venuelist.genre
-        flash('Venue ' + request.form['name'] + ' was successfully listed!')
+        body['genres']=venuelist.genres
+        flash('Venue ' + request.form['name'] + ' was successfully listed!')  
+        return render_template('pages/home.html')  
     except():
         db.session.rollback()
         error = True
         flash('There was an error with the creation! Venue ' + data.name + ' could not be listed.')
-        print(sys.exc_info)
     finally:
         db.session.close()
     if error:
         abort(500)
     else:
-        return jsonify(body)
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+      return jsonify(body)
     return render_template('pages/home.html')
+    
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
